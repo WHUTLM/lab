@@ -47,9 +47,6 @@ int ObTransformMinMax::transform_one_stmt(common::ObIArray<ObParentDMLStmt> &par
                                           ObDMLStmt *&stmt,
                                           bool &trans_happened)
 {
-
-
-  LOG_DEBUG("go to transform minmax");
   int ret = OB_SUCCESS;
   bool is_valid = false;
   trans_happened = false;
@@ -74,7 +71,7 @@ int ObTransformMinMax::transform_one_stmt(common::ObIArray<ObParentDMLStmt> &par
   } else {
     trans_happened = true;
   }
-  LOG_DEBUG("can do minmax is_valid",K(is_valid));
+  LOG_WARN("can do minmax is_valid",K(is_valid));
   return ret;
 }
 
@@ -82,8 +79,6 @@ int ObTransformMinMax::check_transform_validity(ObTransformerCtx &ctx,
                                                 ObSelectStmt *select_stmt,
                                                 bool &is_valid)
 {
-  LOG_DEBUG("go to transform check_transform_validity");
-
   int ret = OB_SUCCESS;
   is_valid = false;
   bool has_rownum = false;
@@ -94,7 +89,8 @@ int ObTransformMinMax::check_transform_validity(ObTransformerCtx &ctx,
     OPT_TRACE("stmt has recusive cte or hierarchical query");
   } else if (select_stmt->get_from_item_size() != 1 || select_stmt->get_from_item(0).is_joined_
              || select_stmt->get_aggr_item_size() < 1 || !select_stmt->is_scala_group_by()
-             || select_stmt->is_contains_assignment()) {
+             || select_stmt->is_contains_assignment()
+             ||(select_stmt->get_aggr_item_size() > 1 && select_stmt->get_semi_info_size() > 0) ) {
     LOG_DEBUG("not a simple aggr query");
     OPT_TRACE("not a simple aggr query");
   } else if (OB_FAIL(select_stmt->has_rownum(has_rownum))) {
@@ -120,7 +116,7 @@ int ObTransformMinMax::check_transform_validity(ObTransformerCtx &ctx,
   } else {
     LOG_TRACE("Succeed to check minmax transform validity", K(is_valid));
   }
-  LOG_DEBUG("ret alue",K(ret));
+  LOG_WARN("ret_value",K(ret));
   return ret;
 }
 
@@ -166,11 +162,11 @@ int ObTransformMinMax::do_minmax_transform(ObSelectStmt *select_stmt)
       LOG_WARN("failed to add replace pair", K(ret));
     } 
 
-    for(int i=0;i<select_stmt->get_aggr_item_size();i++)
+    for(int i=0;OB_SUCC(ret) &&i<select_stmt->get_aggr_item_size();i++)
     {
       LOG_DEBUG("i value",K(i));
       if (OB_ISNULL(aggr_expr = select_stmt->get_aggr_item(i))
-          || OB_ISNULL(aggr_param = aggr_expr->get_param_expr(i))) {
+          || OB_ISNULL(aggr_param = aggr_expr->get_param_expr(0))) {
         ret = OB_ERR_UNEXPECTED;
         LOG_WARN("get unexpected null", K(ret));
       } else if (OB_FAIL(copier.copy(aggr_param, new_aggr_param))) {
