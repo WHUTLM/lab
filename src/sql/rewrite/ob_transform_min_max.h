@@ -70,6 +70,8 @@ public:
 private:
   int do_transform(ObSelectStmt *select_stmt);
 
+  // void get_agg_and_param(ObSelectStmt *select_stmt);
+
   int do_minmax_transform(ObSelectStmt *select_stmt);
 
   int deep_copy_subquery_for_aggr(const ObSelectStmt &copied_stmt,
